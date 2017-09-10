@@ -270,19 +270,20 @@ function Player (app,server) {
     }
 
 
-	this.loadDefaultPlayList = function(){
-		var uri = self.default_playlist_uri;
-		if(uri === ''){
-			console.log('No default playlist uri given, thus cannot fallback to tracks on empty tracklist');
-			return;
-		}
-		self.mopidy.library.lookup(uri).then(function(tracks) {
-			self.util.shuffle(tracks);
-			self.default_playlist = tracks;
-			self.emit('playback:defaultTracks', self.default_playlist);
-			//console.log('playback:defaultTracks', self.default_playlist);
-		});
-	}
+    this.loadDefaultPlayList = function() {
+        var uri = self.default_playlist_uri;
+        if (uri === '') {
+            console.log('No default playlist uri given, thus cannot fallback to tracks on empty tracklist');
+            return;
+        }
+        self.mopidy.library.lookup(uri).then(function(tracks) {
+            self.util.shuffle(tracks);
+            self.default_playlist = tracks;
+            self.emit('playback:defaultTracks', self.default_playlist);
+            self._playOneFromDefault();
+
+        });
+    }
 
 
 	this._playbackStarted = function(track){
@@ -305,7 +306,7 @@ function Player (app,server) {
 		self.emit('player:track:added');
 	}
 
-	this._playbackEnded = function(lastTlTrack){
+	/*this._playbackEnded = function(lastTlTrack){
 		console.log('_playbackEnded: ', lastTlTrack);
     this.status.playbackstatus = 'PAUSED';
 
@@ -333,7 +334,40 @@ function Player (app,server) {
 				});
 			}
 		});
-	}
+	}*/
+    this._playbackEnded = function(lastTlTrack) {
+        console.log('_playbackEnded: ', lastTlTrack);
+
+        // Delete from (frontend) cache the track that now has been played
+        delete cache[lastTlTrack.tl_track.track.uri];
+
+        self.mopidy.playback.getCurrentTlTrack().then(function(tl_track) {
+            if (tl_track == null) {
+            	if (self.default_playlist.length == 1) {
+		            console.log("No more tracks in default playlist available, re-initializing list");
+		            self.loadDefaultPlayList();
+		        }
+		        self._playOneFromDefault();
+            }
+        });
+    }
+
+    this._playOneFromDefault = function(){
+    	console.log('Tracklist has reached its end, adding one more track from the default playlist');
+        // remove first track from default playlist and have it played
+        var track = self.default_playlist.shift();
+        // If there is just a single element left in the playlist, refill it.
+        // This has the minimal chance of a race condition when the last track immediately ends
+        // (e.g. unplayable/bombed/...) before loadDefaultPlayList finished.
+
+        self.mopidy.library.lookup(track.uri).then(function(track) {
+            self.mopidy.tracklist.add(track).then(function(addedTracks) {
+                self.mopidy.playback.play(addedTracks[0]);
+                self.emit('playback:queue', [track]);
+            });
+        });
+    }
+
 
 	this._online = function (){
 		console.info('[Player.js]: Online');
