@@ -350,13 +350,14 @@ function Player (app,server) {
 		},
 
 		getArt : function(p_track, callback){
-			console.log('Getting cover for: ',p_track);
+			//console.log('Getting cover for: ',p_track);
 
 			// return dummy image as track by default
 			p_track.album.art = 'images/apollo.png';
 
 			// Only send cover art request to spotify if track uri points to spotify
 			if (p_track.uri.substr(0, 'spotify:'.length) === 'spotify:') {
+                //console.log(p_track.uri);
 				request({
 					uri: "https://embed.spotify.com/oembed/?url="+p_track.uri,
 					method: "GET",
@@ -365,12 +366,8 @@ function Player (app,server) {
 					}
 				}, function(error, response, body) {
 					var response = JSON.parse(body);
-					var album_art_640 = function(str){
-						str = str.split('cover');
-						return str[0]+'640'+str[1];
-					}(response.thumbnail_url);
-
-					p_track.album.art = album_art_640;
+                    //console.log(response.thumbnail_url);
+					p_track.album.art = response.thumbnail_url;
 					callback.apply(self,[null, p_track]);
 				});
 			} else {
