@@ -110,6 +110,7 @@ function Player(app, server) {
         self.mopidy.tracklist.getTlTracks().then(function(tl_tracks) {
             if (tl_tracks.length == 0) {
                 res_json.error(res, "No tracks added yet");
+                self._playOneFromDefault();
             } else {
                 // Remove all tracks from tl_tracks that have already been played. Thus,
                 // get the currently playing track and slice tl_tracks accordingly.
